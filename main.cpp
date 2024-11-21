@@ -28,6 +28,6 @@ int main(int argc, char* argv[]) {
 	// COMƒ‰ƒCƒuƒ‰ƒŠ‚ÌI—¹
 	CoUninitialize();
 
-	system("pause");
+	//system("pause");
 	return 0;
 }
