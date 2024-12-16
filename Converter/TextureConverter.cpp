@@ -1,11 +1,11 @@
 #include "TextureConverter.h"
 
-void TextureConverter::ConverterTextureWICToDDS(const std::string& filePath) {
+void TextureConverter::ConverterTextureWICToDDS(const std::string& filePath, int numOptions = 0, char* options[] = nullptr) {
 	// テクスチャファイルを読み込む
 	LoadWICTextureFromFile(filePath);
 
 	// DDSファイルに変換したものを出力
-	SaveDDSTextureToFile();
+	SaveDDSTextureToFile(numOptions, options);
 }
 
 void TextureConverter::LoadWICTextureFromFile(const std::string& filePath) {
@@ -77,13 +77,29 @@ void TextureConverter::SeparateFilePath(const std::wstring& filePath) {
 	fileName_ = exceptExt;
 }
 
-void TextureConverter::SaveDDSTextureToFile() {
+void TextureConverter::SaveDDSTextureToFile(int numOptions, char* options[]) {
 	HRESULT result;
 	DirectX::ScratchImage mipChain;
+	size_t mipLevel = 0;
+
+	// ミップマップレベル指定を検索
+	for (int i = 0; i < numOptions; i++) {
+		if (std::string(options[i]) == "-ml") {
+			// ミップレベル指定
+			mipLevel = std::stoi(options[i + 1]);
+			break;
+		}
+	}
+
 	// ミップマップを生成
 	result = DirectX::GenerateMipMaps(
 		scratchImage_.GetImages(), scratchImage_.GetImageCount(), scratchImage_.GetMetadata(),
-		DirectX::TEX_FILTER_DEFAULT, 0, mipChain);
+		DirectX::TEX_FILTER_DEFAULT, mipLevel, mipChain);
+	if (SUCCEEDED(result)) {
+		scratchImage_ = std::move(mipChain);
+		metadata_ = scratchImage_.GetMetadata();
+	}
+
 	// 圧縮形式に変換
 	DirectX::ScratchImage converted;
 	result = DirectX::Compress(scratchImage_.GetImages(), scratchImage_.GetImageCount(), metadata_,
@@ -103,4 +119,14 @@ void TextureConverter::SaveDDSTextureToFile() {
 	// DDSファイルの書き出し
 	result = DirectX::SaveToDDSFile(scratchImage_.GetImages(), scratchImage_.GetImageCount(), metadata_, DirectX::DDS_FLAGS_NONE, filePath.c_str());
 	assert(SUCCEEDED(result));
+}
+
+void TextureConverter::OutputUsage() {
+	printf("画像ファイルをWIC形式からDDS形式に変換します。\n");
+	printf("\n");
+	printf("TextureConverter [ドライブ:][パス][ファイル名]\n");
+	printf("\n");
+	printf(" [ドライブ:][パス][ファイル名]: 変換したいWIC形式の画像ファイルを指定します。\n");
+	printf("\n");
+	printf(" [-ml level]: ミップレベルを指定します。0を指定すると1x1までのフルミップマップチェーンを生成します\n");
 }
